@@ -18,3 +18,4 @@ jobs:
       - run: make deploy-license-data
         env:
           GITHUB_TOKEN: ${{ secrets.LICENSE_LIST_GITHUB_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}

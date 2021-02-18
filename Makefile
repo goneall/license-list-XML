@@ -15,13 +15,26 @@ VERSION = $(subst V,,$(subst v,,$(GITVERSION)))
 RELEASE_DATE = $(shell date '+%Y-%m-%d')
 COMMIT_MSG = License list build $(VERSION) using license list publisher $(TOOL_VERSION)
 RELEASE_MSG = Adding release matching the license list XML tag $(VERSION)
-
+LICENSE_SOURCE = src
+# Based on https://github.community/t/find-what-files-changed-in-a-pushed-commit/17037
+NUM_FILES_CHANGED = $(shell git diff-tree --no-commit-id --name-only -r $(GITHUB_SHA) | wc -l)
+SOURCE_FILE_CHANGED = $(shell git diff-tree --no-commit-id --name-only -r $(GITHUB_SHA) | grep 'src/')
+NUM_SOURCE_FILE_CHANGED = $(shell git diff-tree --no-commit-id --name-only -r $(GITHUB_SHA) | grep 'src/' | wc -l)
+.PHONY: temp-test
+temp-test:
+	echo $(NUM_FILES_CHANGED)
+	echo $(SOURCE_FILE_CHANGED)
+	echo $(NUM_SOURCE_FILE_CHANGED)
+	if [[ $(NUM_FILES_CHANGED) < 3 ]] ; then if [[ $(NUM_SOURCE_FILE_CHANGED) == 1 ]] ; then LICENSE_SOURCE = $(SOURCE_FILE_CHANGED) ; fi ; fi
+	echo $(LICENSE_SOURCE)
 .PHONY: validate-canonical-match
 validate-canonical-match: licenseListPublisher-$(TOOL_VERSION).jar-valid $(TEST_DATA) $(LICENSE_OUTPUT_DIR)
-	java -jar -DLocalFsfFreeJson=true -DlistedLicenseSchema="schema/ListedLicense.xsd" licenseListPublisher-$(TOOL_VERSION).jar LicenseRDFAGenerator src '$(LICENSE_OUTPUT_DIR)' 1.0 2000-01-01 $(TEST_DATA) expected-warnings
+	if [[ $(NUM_FILES_CHANGED) < 3 ]] ; then if [[ $(NUM_SOURCE_FILE_CHANGED) == 1 ]] ; then LICENSE_SOURCE = $(SOURCE_FILE_CHANGED) ; fi ; fi
+	java -jar -DLocalFsfFreeJson=true -DlistedLicenseSchema="schema/ListedLicense.xsd" licenseListPublisher-$(TOOL_VERSION).jar LicenseRDFAGenerator $(LICENSE_SOURCE) '$(LICENSE_OUTPUT_DIR)' 1.0 2000-01-01 $(TEST_DATA) expected-warnings
 
 .PHONY: deploy-license-data
 deploy-license-data: licenseListPublisher-$(TOOL_VERSION).jar-valid $(TEST_DATA)
+	if [[ $(NUM_FILES_CHANGED) < 3 ]] ; then if [[ $(NUM_SOURCE_FILE_CHANGED) == 1 ]] ; then LICENSE_SOURCE = $(SOURCE_FILE_CHANGED) ; fi ; fi
 	rm -rf '$(LICENSE_OUTPUT_DIR)'
 	git clone --quiet --depth 1 $(LICENSE_DATA_URL) '$(LICENSE_OUTPUT_DIR)'
 	# Clean out the old data directories
